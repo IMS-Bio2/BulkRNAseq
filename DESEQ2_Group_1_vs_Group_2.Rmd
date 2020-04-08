@@ -1,0 +1,299 @@
+<center> <h1><b>Differential Expression Analysis Group 1 vs. Group 2</b></h1> </center>
+<center> <h2><b> </b></h2> </center>
+<p><br /></p>
+<p><br /></p>
+
+
+```{r generating code, message=FALSE, warning=FALSE, include=FALSE, results='asis'}
+
+source("~/Dropbox (Cambridge University)/Bioinformatics_core/Projects/Minoru_project/Second_batch/DE_Analysis_feature_counts/DESEQ2_Group_1_vs_Group_2.R")
+
+```
+
+
+
+Main features
+================================================
+
+
+### Considered datasets:
+
+* * *
+
+```{r datasets matrix, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
+library(knitr)
+library(kableExtra)
+kable(datasets_matrix, caption= " Studied datasets and replicates" )%>%
+  kable_styling(c("striped", "bordered")) %>%
+  
+  
+```
+
+* * *
+
+### Other general information:
+
+* * *
+- **Reference genome**: Mus musculus, GRCm38.p6
+- **Number of annotated genes (features)**: `r genes_number`
+- **Significance thresholds for DE analysis**: FDR = `r lfc` ; Adjusted p-value = `r pval`
+- **Software used for adapter trimming**: cutadapt version 1.17
+- **Software used for adapter mapping**: STAR version 2.6.1
+- **Software used for counting**: Feature Counts version 1.6.2
+- **Software used for DE analysis**: DESeq2, version `r soft_version`
+
+
+* * *
+
+### Summary of the counts statistics
+
+
+```{r printing table, echo=FALSE, results='asis'}
+library(knitr)
+i=1
+#while(i<=1){
+  name_mutant <- names_mutants[i]  
+kable(get(paste0("summary_matrix_",name_control, "_", name_mutant)), caption = paste0("Summary statistics for the samples ", name_control, " and ", name_mutant)) %>%
+  kable_styling(c("striped", "bordered")) 
+i=i+1
+# print("\n")
+#}
+```
+
+
+* * *
+
+Analysis results
+================================================
+
+
+### Tables 
+
+* * *                                                   
+```{r tables, echo=FALSE, results='asis'}
+
+i=1
+p=1
+q=2
+r=3
+s=4
+
+a=vector(length=3)
+
+while(i<=length(names_mutants)){
+
+name_mutant <- names_mutants[i]  
+
+summingup <- (paste0(new_wd,"/summingup_datatable_",name_control, "_", name_mutant, ".html"))
+n_DE_genes <-  nrow(get(paste0("summingup_matrix_topscores_",name_control, "_", name_mutant)))
+topscores <- (paste0(new_wd,"/topscores_datatable_",name_control, "_", name_mutant, ".html"))
+cat("  \n")
+a[p] <- paste0("  \nCOMPARISON: ", name_control, " vs. ", name_mutant, "\n ", "\nNUMBER OF DIFFERENTIALLY EXPRESSED GENES: ", n_DE_genes, "  \n ") 
+a[q] <- paste0("  \n --> ALL GENES:", "\n", "\n",htmltools::includeHTML(summingup), "  \n")
+a[r] <- paste0("  \n ","\n --> TOPSCORE GENES (subset of genes considered significantly differentially expressed):\n \n ", "\n", "\n",htmltools::includeHTML(topscores))
+#a[s] <- paste0("  \n #################################################################################################", "  \n")
+
+i=i+1
+p=p+4
+q=q+4
+r=r+4
+s=s+4
+}
+
+asis_output(a)
+
+```
+
+<b>Mean of norm counts</b>: Average of the normalised counts across all the replicates
+
+<b>log2 FC</b>: log2 Fold Change GFP- vs GFP+
+
+<b>BH pval</b>: p-value resulting from the Wald test (significance of the log2 fold change) corrected for the false discovery rate through the Benjamini Hockberg procedure 
+
+
+<p><br /></p>
+<p><br /></p>
+
+### Plots
+
+* * * 
+
+```{r dynamic_plots, eval=FALSE, include=FALSE, results='asis'}
+
+library(knitr)
+
+i=1
+
+q=1
+r=2
+s=3
+
+a=vector(length=9)
+
+while(i<=length(names_mutants)){
+
+MAplot <- (paste0(new_wd,"/dynamic_MAplot",name_control, "_", name_mutant, ".html"))
+volcano <- (paste0(new_wd,"/dynamic_Vplot",name_control, "_", name_mutant, ".html"))
+
+a[q] <- htmltools::includeHTML(MAplot)
+a[r] <- htmltools::includeHTML(volcano)
+a[s] <- paste0("\n ###################################################################################", "\n")
+
+i=i+1
+
+q=q+3
+r=r+3
+s=s+3
+
+}
+
+asis_output(a)
+
+```
+
+
+```{r static_plots, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
+
+library(knitr)
+
+i=1
+
+while(i<=length(names_mutants)){
+
+   name_mutant <- names_mutants[i]  
+
+##########################
+
+# **Creating the counts matrix needed for DESeq2 AND ... ---------------------------------------------------------------------  
+
+  #creates the counts matrix: each row is a gene, the first n columns are the counts coming from the control's replicates, the last p columns are the counts from the mutant replicates
+  assign( paste0( "columns_list_", name_control, "_", name_mutant), sapply(get( paste0("counts_list_", name_control, "_", name_mutant) ), `[[` , 2) )  #takes one column each two (i.e. only the columns containing the counts) from the counts list
+
+  assign( paste0( "counts_matrix_", name_control, "_", name_mutant),  matrix(unlist( get( paste0( "columns_list_", name_control, "_", name_mutant) ) , use.names = FALSE), ncol = length( get( paste0("counts_list_", name_control, "_", name_mutant) ) ) )  )#convert the list into a matrix, for convenience
+
+  assign( paste0( "counts_matrix_", name_control, "_", name_mutant, "_with_names"), get(  paste0( "counts_matrix_", name_control, "_", name_mutant) ) )  #the counts matrix with names is also created; at this stage is the same of the counts matrix
+
+  # ** ... AND Creating the summary matrix ---------------------------------------------------------------------  
+  #The summary matrix contains, for each comparison, the general information about the counts statistics 
+  
+  #extracts the needed samples from the whole list
+  assign( paste0("summary_tables_", name_control), summary_tables[grep(name_control, samples_names, value = TRUE)]) #extract the controls summary tables 
+  
+  assign( paste0("summary_tables_", name_mutant), summary_tables[grep(name_mutant, samples_names, value = TRUE)]) #extract the mutants summary tables 
+  
+  assign( paste0("summary_list_", name_control, "_", name_mutant) , c( get( paste0("summary_tables_", name_control)),  get(paste0("summary_tables_", name_mutant)) )) #merges the two summary tables above in one list
+  
+  #creates the summary matrix: each row is a gene, the first n columns are the counts coming from the control's replicates, the last p columns are the counts from the mutant replicates
+  assign( paste0( "columns_list_", name_control, "_", name_mutant), sapply(get( paste0("summary_list_", name_control, "_", name_mutant) ), `[[` , 2) )  #takes one column each two (i.e. only the columns containing the counts) from the counts list
+  
+  assign( paste0( "summary_matrix_", name_control, "_", name_mutant),  matrix(unlist( get( paste0( "columns_list_", name_control, "_", name_mutant) ) , use.names = FALSE), ncol = length( get( paste0("summary_list_", name_control, "_", name_mutant) ) ) )  )#convert the list into a matrix, for convenience
+  
+  assign( paste0( "summary_matrix_", name_control, "_", name_mutant, "_with_names"), get(  paste0( "summary_matrix_", name_control, "_", name_mutant) ) )  #the counts matrix with names is also created; at this stage is the same of the counts matrix
+  
+  
+  col_names <-c(grep(name_control, samples_names, value=TRUE),  grep(name_mutant, samples_names, value = TRUE))  # takes the right names for the columns of the counts matrix, from the sample names 
+
+  dummy<- get( paste0( "counts_matrix_", name_control, "_", name_mutant, "_with_names") )         #workaround for assigning dynamically colnames and rownames to the counts_matrix - START
+  colnames(dummy) <- col_names
+  assign(  paste0( "counts_matrix_", name_control, "_", name_mutant, "_with_names")  ,  dummy)
+
+  dummy<- get( paste0( "counts_matrix_", name_control, "_", name_mutant, "_with_names") )
+  rownames(dummy) <- genes_names
+  assign(  paste0( "counts_matrix_", name_control, "_", name_mutant, "_with_names")  ,  dummy)    #workaround for assigning dynamically colnames and rownames to the counts_matrix - END
+
+  dummy<- get( paste0( "summary_matrix_", name_control, "_", name_mutant) )         #workaround for assigning dynamically colnames and rownames to the summary_matrix - START
+  colnames(dummy) <- col_names
+  rownames(dummy) <- summary_tables[[1]][,1]
+  assign(  paste0( "summary_matrix_", name_control, "_", name_mutant)  ,  dummy) #workaround for assigning dynamically colnames and rownames to the summary_matrix - END
+
+# #Evaluating the number of the reads counted and uncounted by HTSEQ2
+  total_uncounted <- apply(get(paste0( "summary_matrix_", name_control, "_", name_mutant))[-1,], 2, sum)
+  total_counted <- get(paste0( "summary_matrix_", name_control, "_", name_mutant))[1,]
+  total_number <- total_uncounted + total_counted
+  fraction_counted <- signif(total_counted/total_number, digits=3)
+  void_row<-rep(" ", length(total_counted))
+  statistics_matrix <- rbind(total_number, total_counted, total_uncounted,fraction_counted,void_row)
+  rownames(statistics_matrix)<-c("TOTAL READS MAPPED", "TOTAL READS COUNTED", "TOTAL READS NON COUNTED", "FRACTION COUNTED" , "DETAILS UNCOUNTED:")
+
+    #merging summary matrix and statistics matrix
+  dummy<- rbind(statistics_matrix, get( paste0( "summary_matrix_", name_control, "_", name_mutant) )) 
+  assign(  paste0( "summary_matrix_", name_control, "_", name_mutant)  ,  dummy)
+#Creates the datatable for the summary matrix - datatable comes from the DT package and creates interactive tables
+assign(paste0("summary_datatable_",name_control, "_", name_mutant) , datatable(get(paste0("summary_matrix_",name_control, "_", name_mutant))) )
+
+#**Defining the "experimental design" -----------------------------------
+comparisons <- sapply(col_names, function(x) substr(x,1,7))  #takes only the first parts of the column names; these are the identifiers of the control and mutant's data, irrespectively of the replicates 
+
+experimental_design <- data.frame(row.names = col_names, comparisons=comparisons)
+experimental_design$correlated <- c(seq(1: length(grep(name_control, col_names)) ),  seq(1: length(grep(name_mutant, col_names)) ) )
+  
+relevel(experimental_design$comparisons, ref=name_control)
+
+#**Calling DESeq2 ------------------------
+
+#Creating the dds data structure, needed from DESEQ2
+dds <- DESeqDataSetFromMatrix(countData= get( paste0( "counts_matrix_", name_control, "_", name_mutant, "_with_names")) , colData=experimental_design, design=~correlated + comparisons)
+
+#Calls DEseq2 on dds and store the results in de
+de<-DESeq(dds)
+
+#Uses the built-in results operator for creating a matrix-like structure storing the DE analysis results; the structure is stored in res 
+res <-results(de)
+
+MA_dataframe <- data.frame(Ln_mean=log(res$baseMean), foldchange = res$log2FoldChange, pvaladj=res$padj)
+rownames(MA_dataframe) <- rownames(res)
+MA_dataframe <- MA_dataframe[which(!is.na(MA_dataframe$foldchange)), ]
+MA_dataframe$Diff_Exp <- rep(0, nrow(MA_dataframe))
+MA_dataframe$Diff_Exp[which(abs(MA_dataframe$foldchange)>=lfc  )] <- "Relevant log2 FC" 
+MA_dataframe$Diff_Exp[which(abs(MA_dataframe$foldchange)>=lfc & MA_dataframe$pvaladj<=pval)] <- "Relevant log2 FC and Pval" 
+MA_dataframe$Diff_Exp[which(abs(MA_dataframe$foldchange)<lfc)] = "Non significant" 
+
+v <-ggplot(MA_dataframe, aes(x=Ln_mean, y=foldchange, text=rownames(MA_dataframe)))+
+    geom_point(aes(colour= Diff_Exp), size=.5)+
+    geom_hline(yintercept=0, linetype=1, color="green") + geom_hline(yintercept=lfc,linetype=3, color="green") + geom_hline(yintercept=-lfc, linetype=3, color="green")+
+    scale_colour_manual(values = c("Relevant log2 FC and Pval" ="red", "Non significant" = "black", "Relevant log2 FC" ="blue"))+
+    xlab("ln mean of norm. counts") + ylab("log2 fold change")+ scale_x_continuous(labels = function(x)as.integer(exp(x)))+
+    #+ylim(-4, 4)
+    labs(aesthetic='custom text')+
+    ggtitle(paste("MA plot", name_control, "vs.", name_mutant))
+
+cat(sprintf("  \n  \n"))
+cat(sprintf("  \n  \n"))
+cat(sprintf("  \n  \n"))
+cat(sprintf("  \n  \n"))
+cat(sprintf("  \n  \n"))
+cat(sprintf("  \n  \n"))
+cat(sprintf("  \n  \n"))
+cat(sprintf("  \n  \n"))
+cat(sprintf("  \n  \n"))
+print(v)
+
+###########################################
+
+z<-ggplot( get(paste0("results_tab_",name_control,"_",name_mutant)), aes(x=logFC, y=negLogPval, text=rownames(get(paste0("results_tab_",name_control,"_",name_mutant))) ) )+
+  geom_point(aes(colour= Diff_Exp), size=.5)+
+  geom_hline(yintercept=-log10(pval), linetype=3, color="green") + geom_vline(xintercept=-c(-lfc, lfc), linetype=3, color="blue")+
+  scale_colour_manual(values = c("DE +" ="red", "DE -" = "black"))+
+  xlab("log2 fold change") + ylab("-log10 pvalue")+ 
+  ggtitle(paste("Volcano plot", name_control, "vs.", name_mutant))
+
+cat(sprintf("  \n  \n"))
+cat(sprintf("  \n  \n"))
+cat(sprintf("  \n  \n"))
+cat(sprintf("  \n  \n"))
+cat(sprintf("  \n  \n"))
+cat(sprintf("  \n  \n"))
+cat(sprintf("  \n  \n"))
+cat(sprintf("  \n  \n"))
+cat(sprintf("  \n  \n"))
+print(z)
+
+i=i+1
+
+}
+
+
+```
+
+
+
